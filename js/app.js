@@ -111,6 +111,18 @@ const FACES = {
         " |  \\   █   /  | ",
         "  \\  \\_?_?_/  /  ",
         "   \\/       \\/   "
+    ].join("\n"),
+
+    MOCKING: [
+        "   /\\       /\\   ",
+        "  /  \\_____/  \\  ",
+        " |  /       \\  | ",
+        " | |  ▀▀   ▀▀  | | ",
+        " | | ▄█▀   ▀█▄ | | ",
+        " | |  ░     ░  | | ",
+        " |  \\   ▄▄  /  | ",
+        "  \\  \\_____/  /  ",
+        "   \\/       \\/   "
     ].join("\n")
 };
 
@@ -329,11 +341,11 @@ const STATES = {
         isSystemLocked: false
     },
     [STATE_KEYS.CLOSING_WARNING]: {
-        faceText: FACES.NORMAL,
-        faceColor: PALETTE.SUCCESS,
-        textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.SUCCESS}`,
+        faceText: FACES.MOCKING,
+        faceColor: PALETTE.TRANSITION,
+        textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.TRANSITION}`,
         statusText: "DOOR CLOSING...",
-        statusColor: "var(--pc98-magenta)",
+        statusColor: PALETTE.TRANSITION,
         isSystemLocked: false
     },
     [STATE_KEYS.STATIC]: {
@@ -370,8 +382,12 @@ function transitionToState(stateKey, delayMs = 0) {
 
     // Handle immediate execution (0ms)
     if (DOM.face) {
-        // Fallback so that face never evaluates to undefined during static transtions (or other states without faceText definition)
-        DOM.face.innerText = state.faceText !== undefined ? state.faceText : FACES.NORMAL;
+        // Determine the safe visual fallback layout context dynamically
+        const isClosing = DOM.status && DOM.status.innerText === "PORTAL_CLOSING...";
+        const defaultFace = isClosing ? FACES.MOCKING : FACES.NORMAL;
+
+        // Falls back to the correct background face during static recoveries
+        DOM.face.innerText = state.faceText !== undefined ? state.faceText : defaultFace;
         DOM.face.style.color = state.faceColor;
         DOM.face.style.textShadow = state.textShadow;
     }
