@@ -395,8 +395,11 @@ function transitionToState(stateKey, delayMs = 0) {
  * Disable "Insert Coin" button - prevent multiple submissions
  */
 function disableCoinButton(status = true) {
-    if (!DOM.coinButton) { return; }
-    DOM.coinButton.disabled = status;
+    // If the top-level selector didn't fetch it during boot, find it dynamically right now
+    const btn = DOM.coinButton || document.querySelector('.coin-button');
+    if (btn) {
+        btn.disabled = status;
+    }
 }
 
 /**
