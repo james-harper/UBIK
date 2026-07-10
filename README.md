@@ -4,6 +4,10 @@
   <img src="assets/ubik.jpg" width="300" alt="Philip K. Dick Ubik Vintage Paperback Cover Art Tribute">
 </p>
 
+<p align="center">
+<strong>📡LIVE DEMO: <a href-"https://james-harper.github.io/UBIK">james-harper.github.io/UBIK</a></strong>
+</>
+
 An interactive, retro-futuristic client-side terminal overlay inspired by the stubborn, capitalistic smart-home appliances in Philip K. Dick’s novel *Ubik* and the stark visual aesthetics of 1990s Japanese PC-98 computing.
 
 This application replicates the iconic apartment door interface that strictly refuses to open unless the resident deposits hard currency. Built entirely with **vanilla HTML, CSS, and modular modern JavaScript**, this project functions as a self-contained, zero-dependency engineering showcase demonstrating clean-code architecture, low-level audio physics synthesis, and native browser voice management.
