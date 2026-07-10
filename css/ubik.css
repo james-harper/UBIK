@@ -1,0 +1,267 @@
+/* ==========================================================================
+ *   🎨 1. CORE DESIGN TOKENS & SYSTEM RESETS
+ *   ========================================================================== */
+:root {
+    /* PC-98 Strict 16-Color Emulation Palette */
+    --pc98-black:   #000000;
+    --pc98-white:   #ffffff;
+    --pc98-cyan:    #00ffff;
+    --pc98-magenta: #ff00ff;
+    --pc98-green:   #00ff00;
+    --pc98-red:     #ff0000;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    background-color: #050505;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+ *   📺 2. HARDWARE DISPLAY LAYER (CRT MONITOR SIMULATION)
+ *   ========================================================================== */
+.crt-monitor {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--pc98-black);
+    display: flex;
+    flex-direction: column;
+    padding: 40px;
+    /* Immersive bezel shadow edge curvature */
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9),
+    inset 0 0 40px  rgba(0, 255, 255, 0.1);
+}
+
+/* Phosphor Refresh Scanlines & Ambient Glass Vignette Glare */
+.crt-monitor::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background:
+    /* Precise Horizontal Phosphor Scanlines */
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%),
+    /* High-vacuum glass bulge vignette shading */
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.4) 100%);
+    background-size: 100% 4px, 100% 100%;
+    z-index: 9999;
+    pointer-events: none; /* Clicking layer fallback pass-through */
+    animation: crt-flicker 0.2s infinite;
+}
+
+/* ==========================================================================
+ *   📐 3. PRIMARY VIEWPORT GRID & SPACE ARCHITECTURE
+ *   ========================================================================== */
+header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    color: var(--pc98-cyan);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 2px dashed var(--pc98-cyan);
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+    flex-shrink: 0;
+}
+
+.main-layout-split {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    gap: 30px;
+}
+
+.left-column {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.right-column {
+    width: 240px;
+    flex-shrink: 0; /* Strict boundary shield against text expansion engine shifts */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+}
+
+/* ==========================================================================
+ *   📟 4. PC-98 DOUBLE-BORDER HARDWARE COMPONENT INTERFACES
+ *   ========================================================================== */
+.pc98-terminal {
+    background-color: var(--pc98-black);
+    /* Geometric double-strikethrough trace pattern mapping */
+    border: 2px solid var(--pc98-white);
+    outline: 2px solid var(--pc98-white);
+    outline-offset: 4px;
+    padding: 25px;
+    border-radius: 0;
+}
+
+/* Left Workspace Panel Modules */
+.text-terminal {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.system-status {
+    display: inline-block;
+    width: 240px;
+    text-align: right;
+    font-weight: bold;
+    transition: color 0.15s ease;
+}
+
+/* Pulsing animation fired automatically when the header matches the warning state color */
+.system-status[style*="color: var(--pc98-magenta)"] {
+    animation: alert-pulse 0.4s infinite alternate ease-in-out;
+}
+
+/* Smooth high-speed neon visibility shimmer */
+@keyframes alert-pulse {
+    0%   { opacity: 0.35; text-shadow: none; }
+    100% { opacity: 1.00; text-shadow: 0 0 10px var(--pc98-magenta); }
+}
+
+.ai-identity {
+    color: var(--pc98-magenta);
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+}
+
+.dialogue-box {
+    color: var(--pc98-white);
+    font-size: 1.3rem;
+    line-height: 1.6;
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: normal;
+}
+
+.dialogue-box::after {
+    content: " █";
+    animation: cursor-blink 0.8s infinite steps(1);
+}
+
+/* Right Sidebar Panel Modules */
+.ai-face-container {
+    flex-grow: 0;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+
+    /* 25% Dither Pattern: Creates an authentic PC-98 "Dark Grey" panel effect */
+    background-image: conic-gradient(
+        var(--pc98-white) 0.0turn 0.25turn,
+                                     transparent 0.25turn 1.0turn
+    );
+    background-size: 2px 2px; /* Super fine pixel grid scale */
+    background-color: var(--pc98-black); /* Shines through the transparent slots */
+}
+
+
+.ascii-face {
+    color: var(--pc98-green);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1rem;
+    line-height: 1.0; /* Locks vertical wireframe rows completely flush */
+    font-weight: bold;
+    text-align: center;
+    white-space: pre;
+
+    .ascii-face {
+        color: var(--pc98-green);
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 1.1rem;
+        line-height: 1.0;
+        font-weight: bold;
+        text-align: center;
+        white-space: pre;
+
+        /* Enforces pure black behind the character strokes */
+        background-color: var(--pc98-black);
+        padding: 10px; /* Gives the face a small buffer gap from the dither texture */
+    }
+
+}
+
+/* ==========================================================================
+ *   🕹️ 5. INTERACTIVE WAREZ CONTROLS & COMPACT PANELS
+ *   ========================================================================== */
+.control-panel {
+    margin-top: auto; /* Pins structural block securely to column base layout */
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 10px;
+    border: 2px solid var(--pc98-cyan);
+    /* Procedural 50% checkerboard dither rendering matrix matrix */
+    background-image: conic-gradient(
+        #000 0.25turn, transparent 0.25turn 0.5turn,
+        #000 0.5turn 0.75turn, transparent 0.75turn
+    );
+    background-size: 4px 4px;
+    background-color: rgba(0, 255, 255, 0.15);
+}
+
+.coin-button {
+    width: 100%;
+    background-color: var(--pc98-black);
+    color: var(--pc98-green);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 15px 0;
+    cursor: pointer;
+    text-transform: uppercase;
+    /* High-contrast hardware interface housing frames */
+    border: 2px solid var(--pc98-magenta);
+    outline: 2px solid var(--pc98-magenta);
+    outline-offset: 3px;
+    border-radius: 0;
+    transition: all 0.1s ease;
+}
+
+.coin-button:hover {
+    background-color: var(--pc98-magenta);
+    color: var(--pc98-black);
+}
+
+.coin-button:active {
+    transform: scale(0.97);
+}
+
+/* ==========================================================================
+ *   🎬 6. MOTION GRAPHICS & TIMING TIMELINE ENGINE ARCHITECTURES
+ *   ========================================================================== */
+@keyframes crt-flicker {
+    0%   { opacity: 0.975; }
+    50%  { opacity: 1.000; }
+    100% { opacity: 0.985; }
+}
+
+@keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+}

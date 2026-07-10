@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UBIK // COIN-OPERATED HOME SECURITY SYSTEM</title>
+  <link rel="stylesheet" type="text/css" href="css/ubik.css">
+
+</head>
+<body>
+
+  <!-- Full CRT Screen Wrapper -->
+  <div class="crt-monitor">
+    <!-- Top System Header -->
+    <header>
+      <div>Appliance: Egress_Door_Portal_B</div>
+      <div>Solvency Status: <span class="system-status" id="status-msg" style="color: var(--pc98-red);">INSOLVENT_LOCKED</span></div>
+    </header>
+
+    <div class="main-layout-split">
+
+      <!-- LEFT COLUMN: Text Box -->
+      <div class="left-column">
+        <!-- Main Dialogue Screen -->
+        <div class="pc98-terminal text-terminal">
+          <div class="dialogue-box" id="text-box">
+            <!-- Typewriter text injects here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Stacked Face & "Insert Coin" button -->
+      <div class="right-column">
+        <!-- The Warez/AI Face Box -->
+        <div class="pc98-terminal ai-face-container">
+          <pre class="ascii-face" id="face-element"></pre>
+        </div>
+
+        <!-- Dithered Interaction Wrapper for Button -->
+        <div class="control-panel">
+          <button class="coin-button" onclick="triggerCoinChime()">[ INSERT COIN ]</button>
+        </div>
+      </div>
+
+    </div> <!-- End .main-layout-split -->
+  </div> <!-- End crt-monitor -->
+
+  <!-- Step 1: Initialize global configs, FSM, and state keys -->
+  <script src="js/app.js"></script>
+  <!-- Step 2: Load the raw structural response data layers -->
+  <script src="js/responses.js"></script>
+  <!-- Step 3: Instantiate synthesizers and speech engines -->
+  <script src="js/audio.js"></script>
+</body>
+</html>
