@@ -342,8 +342,8 @@ const STATES = {
     },
     [STATE_KEYS.CLOSING_WARNING]: {
         faceText: FACES.MOCKING,
-        faceColor: PALETTE.TRANSITION,
-        textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.TRANSITION}`,
+        faceColor: PALETTE.ALERT_FACE,
+        textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.ERROR}`,
         statusText: "DOOR CLOSING...",
         statusColor: PALETTE.TRANSITION,
         isSystemLocked: false
