@@ -252,6 +252,16 @@ header {
     transform: scale(0.97);
 }
 
+/* DISABLED HARDWARE STATE: Fakes an inactive button housing */
+.coin-button:disabled {
+    background-color: #111;
+    color: #444;                  /* Dim text completely down */
+    border-color: #444;           /* Gray out the frames */
+    outline-color: #444;
+    cursor: not-allowed;         /* Changes the mouse cursor to a block circle */
+    transform: none !important;  /* Block active click scale shrink physics */
+}
+
 /* ==========================================================================
  *   🎬 6. MOTION GRAPHICS & TIMING TIMELINE ENGINE ARCHITECTURES
  *   ========================================================================== */

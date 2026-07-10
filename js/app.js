@@ -20,10 +20,7 @@ const CONFIG = {
             DURATION: 250,        // How long the static burst lasts (250ms)
             FLICKER: 40 // Scrambles data create a high-speed shimmering flicker
         },
-        // How long the door remains open
-        EGRESS_WINDOW: 7500,
-        WARNING_WINDOW: 2500   // How long the warning alert sequence lasts
-
+        WARNING_WINDOW: 5000,   // How long the warning alert sequence lasts,
     },
     // Ambient CRT phosphor glow values
     SHADOWS: {
@@ -68,7 +65,8 @@ let textTimeout; // Holds the active character timing reference for the typewrit
 const DOM = {
     status: document.getElementById('status-msg'),
     face: document.getElementById('face-element'),
-    textBox: 'text-box'
+    coinButton: document.querySelector('.coin-button'),
+    textBox: document.getElementById('text-box')
 };
 
 // ==========================================
@@ -120,37 +118,51 @@ const FACES = {
 // ⌨️ TYPEWRITER ENGINE MODULE
 // ==========================================
 /**
- * Types out the given text string letter-by-letter in the main display panel, rendering HTML spacing correctly.
+ * Detects if a string pointer sits directly at an HTML line break boundary.
  */
-function typeText(inputData) {
-    const targetElement = document.getElementById(DOM.textBox);
-    if (!targetElement) return;
+function parseHtmlBreak(text, index) {
+    if (text.substring(index, index + 4) === "<br>") {
+        return { isTag: true, advanceBy: 4, value: "<br>" };
+    }
+    return { isTag: false, advanceBy: 1, value: text.charAt(index) };
+}
+
+/**
+ * Types out the given text string (or array of lines) letter-by-letter,
+ * rendering HTML line breaks correctly. Executes an optional callback on completion.
+ */
+function typeText(inputData, onCompleteCallback = null) {
+    if (!DOM.textBox) return; // Abort if render canvas is missing
 
     const text = Array.isArray(inputData) ? inputData.join("<br>") : inputData;
-
     let index = 0;
+
     clearTimeout(textTimeout);
-    targetElement.innerHTML = ""; // Reset using innerHTML
+    DOM.textBox.innerHTML = "";
 
     function nextCharacter() {
-        if (index < text.length) {
-            // If the engine hits the start of an HTML line break tag
-            if (text.substring(index, index + 4) === "<br>") {
-                targetElement.innerHTML += "<br>";
-                index += 4; // Skip the entire tag boundary instantly
-            } else {
-                const char = text.charAt(index);
-                targetElement.innerHTML += char;
-
-                if (char !== " ") {
-                    playTextClick();
-                }
-                index++;
-            }
-
-            textTimeout = setTimeout(nextCharacter, CONFIG.TYPE_SPEED);
+        //  Handle sequence completion and trigger callback immediately
+        if (index >= text.length && typeof onCompleteCallback === "function") {
+            onCompleteCallback();
+            return;
         }
+
+        // Secondary Fallback Guard: If length is exhausted but no callback exists, just halt
+        if (index >= text.length) return;
+
+        // Process the current character space using our isolated extractor
+        const nextToken = parseHtmlBreak(text, index);
+        DOM.textBox.innerHTML += nextToken.value;
+        index += nextToken.advanceBy;
+
+        // Skip mechanical clicking calculations for raw layout breaks or spaces
+        if (!nextToken.isTag && nextToken.value !== " ") {
+            playTextClick();
+        }
+
+        textTimeout = setTimeout(nextCharacter, CONFIG.TYPE_SPEED);
     }
+
 
     nextCharacter();
 }
@@ -380,35 +392,57 @@ function transitionToState(stateKey, delayMs = 0) {
 }
 
 /**
- * Orchestrates the multi-stage payment validation and visual corruption sequence.
+ * Disable "Insert Coin" button - prevent multiple submissions
+ */
+function disableCoinButton(status = true) {
+    if (!DOM.coinButton) { return; }
+    DOM.coinButton.disabled = status;
+}
+
+/**
+ * Orchestrates the payment token validation sequence
  * Absolute scheduling is used rather than relative to avoid cascading delays
  */
 async function triggerCoinChime() {
+    disableCoinButton();
     playCoinChime();
 
-    // 1. Establish authorisation pipeline
+    // Schedule validation timeline
     transitionToState(STATE_KEYS.OVERRIDE);
     transitionToState(STATE_KEYS.REBOOTING,  CONFIG.ANIMATION.STAGE_2_DELAY);
     transitionToState(STATE_KEYS.VALIDATING,  CONFIG.ANIMATION.STAGE_3_DELAY);
     transitionToState(STATE_KEYS.AUTHORIZED,  CONFIG.ANIMATION.STAGE_4_DELAY);
 
-    // 2. On authorisation success, door is immediately opened
+    // On authorisation success, door is immediately opened
     transitionToState(STATE_KEYS.CLEARED_FOR_PASSAGE, CONFIG.ANIMATION.STAGE_4_DELAY);
 
-    // 3. Compute Warning delay based on total egress window and warning window
-    const warningTriggerDelay = CONFIG.ANIMATION.STAGE_4_DELAY +
-    (CONFIG.ANIMATION.EGRESS_WINDOW - CONFIG.ANIMATION.WARNING_WINDOW);
-    transitionToState(STATE_KEYS.CLOSING_WARNING, warningTriggerDelay);
-
-    // 4. Chain the final transition onto the end of the timeline to lock the portal back down
-    const totalReLockDelay = CONFIG.ANIMATION.STAGE_4_DELAY + CONFIG.ANIMATION.EGRESS_WINDOW;
-    transitionToState(STATE_KEYS.INSOLVENT, totalReLockDelay);
-
-    // 5. Fire off narrative script content
+    // Select and broadcast randomized narrative content
     const randomIndex = Math.floor(Math.random() * NARRATIVE_RESPONSES.length);
-    typeText(NARRATIVE_RESPONSES[randomIndex]);
-    speakTextWithBrowser(NARRATIVE_RESPONSES[randomIndex]);
+    const selectedResponse = NARRATIVE_RESPONSES[randomIndex];
+
+    speakTextWithBrowser(
+        selectedResponse,
+        () => typeText(selectedResponse),
+        () => initiateLockdownSequence()
+    );
 }
+
+/**
+ * Executes the structural closing alerts and restores hardware button interactivity.
+ */
+function initiateLockdownSequence() {
+    // Text-to-speech takes longer to complete than typewriter text - so we are adding an intentional delay to give it time to catch up
+    setTimeout(() => {
+        transitionToState(STATE_KEYS.CLOSING_WARNING);
+        transitionToState(STATE_KEYS.INSOLVENT, CONFIG.ANIMATION.WARNING_WINDOW);
+
+        // Display warning before unlocking button again
+        setTimeout(() => {
+            disableCoinButton(false);
+        }, CONFIG.ANIMATION.WARNING_WINDOW);
+    }, CONFIG.ANIMATION.TTS_BUFFER_DELAY);
+}
+
 
 
 // ==========================================
@@ -416,7 +450,8 @@ async function triggerCoinChime() {
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
     transitionToState(STATE_KEYS.INSOLVENT);
-    typeText(MESSAGES.INITIAL);
+    disableCoinButton(true);
+    typeText(MESSAGES.INITIAL, () => disableCoinButton(false));
     runBlinkLoop();
     runStaticNoiseLoop();
 

@@ -169,7 +169,7 @@ function getSystemVoice() {
  * Synthesizes browser text-to-speech output using the native Web Speech API.
  * Safely handles both flat strings and line layout arrays.
  */
-function speakTextWithBrowser(inputData) {
+function speakTextWithBrowser(inputData, onSpeechStart = null, onSpeechEnd = null) {
     try {
         window.speechSynthesis.cancel();
 
@@ -186,7 +186,15 @@ function speakTextWithBrowser(inputData) {
             utterance.voice = assignedVoice;
         }
 
-        window.speechSynthesis.speak(utterance);
+        // Use onstart/onend callbacks to synchronise audio with text
+        utterance.onstart = () => {
+            if (typeof onSpeechStart === "function") onSpeechStart();
+        };
+
+        utterance.onend = () => {
+            if (typeof onSpeechEnd === "function") onSpeechEnd();
+        };
+    window.speechSynthesis.speak(utterance);
     } catch (e) {
         // Graceful error isolation for browsers with restricted profiles
     }
