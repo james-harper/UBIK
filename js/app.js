@@ -357,14 +357,6 @@ const STATES = {
 // ==========================================
 // 💬 NARRATIVE CONTENT MANIFEST
 // ==========================================
-const MESSAGES = {
-    INITIAL: [
-        "I am sorry, but your current residential credit rating is insufficient.",
-        "To actuate the secondary deadbolts and grant exit authorization from this domicile, please deposit 50p into the physical slot.",
-        "I do not operate on credit, nor do I tolerate emotional appeals."
-    ]
-};
-
 /**
  * Transitions the system to a predefined operational state.
  * Schedules the change if a delay is provided, otherwise updates immediately.
@@ -470,9 +462,12 @@ function initiateLockdownSequence() {
 document.addEventListener("DOMContentLoaded", () => {
     transitionToState(STATE_KEYS.INSOLVENT);
     disableCoinButton(true);
-    typeText(MESSAGES.INITIAL, () => disableCoinButton(false));
-    runBlinkLoop();
-    runStaticNoiseLoop();
+    // Pick a randomized entry text array from the initialisation pool
+    const randomIndex = Math.floor(Math.random() * INITIAL_MESSAGES.length);
+    const selectedInitial = INITIAL_MESSAGES[randomIndex];
+
+    // Kick off the initial text crawl, passing our helper to restore the button on completion
+    typeText(selectedInitial, () => disableCoinButton(false));
 
     // PRE-HYDRATE THE SPEECH REGISTRY
     // Tapping the speech engine instantly tells the OS to stream all available
@@ -486,4 +481,8 @@ document.addEventListener("DOMContentLoaded", () => {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
     }
+
+
+    runBlinkLoop();
+    runStaticNoiseLoop();
 });

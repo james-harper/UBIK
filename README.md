@@ -4,10 +4,6 @@
   <img src="assets/ubik.jpg" width="300" alt="Philip K. Dick Ubik Vintage Paperback Cover Art Tribute">
 </p>
 
-<p align="center">
-<strong>📡LIVE DEMO: <a href-"https://james-harper.github.io/UBIK">james-harper.github.io/UBIK</a></strong>
-</>
-
 An interactive, retro-futuristic client-side terminal overlay inspired by the stubborn, capitalistic smart-home appliances in Philip K. Dick’s novel *Ubik* and the stark visual aesthetics of 1990s Japanese PC-98 computing.
 
 This application replicates the iconic apartment door interface that strictly refuses to open unless the resident deposits hard currency. Built entirely with **vanilla HTML, CSS, and modular modern JavaScript**, this project functions as a self-contained, zero-dependency engineering showcase demonstrating clean-code architecture, low-level audio physics synthesis, and native browser voice management.
@@ -38,7 +34,7 @@ The project splits application concerns cleanly across three decoupled layers:
 ├── js
 │   ├── app.js                 # Core system controller (FSM workflows, loops, and DOM handlers)
 │   ├── audio.js               # Isolated hardware I/O layer (Oscillators & speech engines)
-│   └── responses.js           # Pure structural data model (Narrative content arrays)
+│   └── messages.js           # Pure structural data model (Narrative content arrays)
 └── README.md                  # Project documentation & roadmap
 ```
 
@@ -51,7 +47,7 @@ A reviewer examining the codebase will notice that `js/app.js` sits around 425+ 
 However, for this repository, **convenience, zero-dependency portability, and immediate runtime execution were intentionally prioritised over framework dogmatism**:
 
 1. **Elimination of Network Fetch Overhead**: Because this project purposefully avoids a build step, splitting the primary engine into fragmented files would force the browser to orchestrate multiple sequential HTTP network fetches to load the software. In a pure frontend context, consolidating the core loop minimizes round-trip latency.
-2. **Local Zero-Config Portability**: The codebase utilizes global variable chaining across files (`responses.js` ➔ `audio.js` ➔ `app.js`) instead of native ES Modules (`import`/`export`). This architectural choice deliberately bypasses browser Cross-Origin Resource Sharing (CORS) security lockdowns. 
+2. **Local Zero-Config Portability**: The codebase utilizes global variable chaining across files (`messages.js` ➔ `audio.js` ➔ `app.js`) instead of native ES Modules (`import`/`export`). This architectural choice deliberately bypasses browser Cross-Origin Resource Sharing (CORS) security lockdowns. 
 3. **The "Double-Click" Metric**: As a result of this design, a reviewer can clone this repository and double-click `index.html` to run the application immediately on their local machine. It functions seamlessly out of the box without requiring `npm install`, a local development server, or any build setup.
 ---
 
