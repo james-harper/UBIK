@@ -21,6 +21,9 @@ const CONFIG = {
             FLICKER: 40 // Scrambles data create a high-speed shimmering flicker
         },
         WARNING_WINDOW: 5000,   // How long the warning alert sequence lasts,
+        // If the browser's text-to-speech engine bugs out or freezes, the onend callback will never execute.
+        // If this time is exceeded without TTS starting, we will forcefully lock the system down
+        WATCHDOG_LIMIT: 6000
     },
     // Ambient CRT phosphor glow values
     SHADOWS: {
@@ -49,6 +52,8 @@ const CONFIG = {
         SELECTED_VOICE: null
     }
 };
+
+let watchdogTimeout = null; // WATCHDOG REFERENCE TRACKER
 
 // ==========================================
 // 🎨 STYLE PALETTE CONFIGURATION
@@ -477,6 +482,7 @@ function disableCoinButton(status = true) {
  */
 async function triggerCoinChime() {
     disableCoinButton();
+    clearTimeout(watchdogTimeout);
     playCoinChime();
 
     // Schedule validation timeline
@@ -492,30 +498,52 @@ async function triggerCoinChime() {
     const randomIndex = Math.floor(Math.random() * NARRATIVE_RESPONSES.length);
     const selectedResponse = NARRATIVE_RESPONSES[randomIndex];
 
+    // Safety measure: in case TTS fails
+    watchdogTimeout = initiateWatchdogTimer(selectedResponse);
+
     speakTextWithBrowser(
         selectedResponse,
-        () => typeText(selectedResponse),
-        () => initiateLockdownSequence()
+        () => {
+            // TTS started successfullly! Let the typewriter take over and clear the watchdog timer so it never cuts off successful speech
+            clearTimeout(watchdogTimeout);
+            typeText(selectedResponse);
+        },
+        () => {
+            // TTS finished successfully! Execute normal lockdown.
+            initiateLockdownSequence();
+        }
     );
+}
+
+// ======================================================================
+// 🐕 THE WATCHDOG PROTECTION CIRCUIT
+// ======================================================================
+// If the browser speech engine stalls, this timer forces a recovery shutdown
+function initiateWatchdogTimer(text) {
+    return setTimeout(() => {
+        // Stop any broken speech synthesis processes running in the background
+        window.speechSynthesis.cancel();
+
+        // Force typewriter to instantly dump out the full text block rather than staying blank
+        typeText(text);
+
+        // Force the app back to reality
+        initiateLockdownSequence();
+    }, CONFIG.ANIMATION.WATCHDOG_LIMIT);
 }
 
 /**
  * Executes the structural closing alerts and restores hardware button interactivity.
  */
 function initiateLockdownSequence() {
-    // Text-to-speech takes longer to complete than typewriter text - so we are adding an intentional delay to give it time to catch up
+    transitionToState(STATE_KEYS.CLOSING_WARNING);
+    transitionToState(STATE_KEYS.INSOLVENT, CONFIG.ANIMATION.WARNING_WINDOW);
+
+    // Display warning before unlocking button again
     setTimeout(() => {
-        transitionToState(STATE_KEYS.CLOSING_WARNING);
-        transitionToState(STATE_KEYS.INSOLVENT, CONFIG.ANIMATION.WARNING_WINDOW);
-
-        // Display warning before unlocking button again
-        setTimeout(() => {
-            disableCoinButton(false);
-        }, CONFIG.ANIMATION.WARNING_WINDOW);
-    }, CONFIG.ANIMATION.TTS_BUFFER_DELAY);
+        disableCoinButton(false);
+    }, CONFIG.ANIMATION.WARNING_WINDOW);
 }
-
-
 
 // ==========================================
 // 🚀 INITIALIZATION INTERACTION
