@@ -202,8 +202,35 @@ header {
         background-color: var(--pc98-black);
         padding: 10px; /* Gives the face a small buffer gap from the dither texture */
     }
-
 }
+
+/* HARDWARE DOOR LOCK VIEWPANEL HOUSING */
+.door-lock-container {
+    flex-grow: 1;               /* Forces this specific middle box to expand and fill the remaining height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+
+    /* 25% Dither Texture: Smoothly echoes the gunmetal grey housing theme */
+    background-image: conic-gradient(
+        var(--pc98-white) 0.0turn 0.25turn,
+                                     transparent 0.25turn 1.0turn
+    );
+    background-size: 2px 2px;
+    background-color: var(--pc98-black);
+}
+
+.ascii-lock {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;          /* Scales slightly smaller to ensure absolute structural line bounds safety */
+    line-height: 1.1;
+    font-weight: bold;
+    text-align: center;
+    white-space: pre;
+    transition: color 0.15s ease;
+}
+
 
 /* ==========================================================================
  *   🕹️ 5. INTERACTIVE WAREZ CONTROLS & COMPACT PANELS

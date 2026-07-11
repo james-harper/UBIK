@@ -65,6 +65,7 @@ let textTimeout; // Holds the active character timing reference for the typewrit
 const DOM = {
     status: document.getElementById('status-msg'),
     face: document.getElementById('face-element'),
+    lock: document.getElementById('lock-element'),
     coinButton: document.querySelector('.coin-button'),
     textBox: document.getElementById('text-box')
 };
@@ -123,6 +124,33 @@ const FACES = {
         " |  \\   ▄▄  /  | ",
         "  \\  \\_____/  /  ",
         "   \\/       \\/   "
+    ].join("\n")
+};
+
+// ==========================================
+// 🔒 LOCK WIREFRAME DATA MANIFEST
+// ==========================================
+const LOCKS = {
+    // A heavy industrial vault door assembly with engaged slide-bolts
+    SECURE: [
+        " ┌──────────────┐ ",
+        " │  ████  ████  │ ",
+        " │ █────██────█ │ ",
+        " ├─█──[LOCKED]─█─┤ ",
+        " │ █────██────█ │ ",
+        " │  ████  ████  │ ",
+        " └──────────────┘ "
+    ].join("\n"),
+
+    // Slide-bolts retracted into the housing channels
+    UNLATCHED: [
+        " ┌──────────────┐ ",
+        " │  ░░░░  ░░░░  │ ",
+        " │ █          █ │ ",
+        " ├─   [OPEN]   ─┤ ",
+        " │ █          █ │ ",
+        " │  ░░░░  ░░░░  │ ",
+        " └──────────────┘ "
     ].join("\n")
 };
 
@@ -301,35 +329,50 @@ const STATES = {
         faceColor: PALETTE.ALERT_FACE,
         textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.ERROR}`,
         statusText: "INSOLVENT_LOCKED",
-        statusColor: PALETTE.ERROR
+        statusColor: PALETTE.ERROR,
+        isSystemLocked: false,
+        lockText: LOCKS.SECURE,
+        lockColor: PALETTE.ERROR
     },
     [STATE_KEYS.OVERRIDE]: {
         faceText: FACES.GLITCH,
         faceColor: PALETTE.TRANSITION,
         textShadow: `${CONFIG.SHADOWS.SPIKE} ${PALETTE.TRANSITION}`,
         statusText: "ACCESS_OVERRIDE...",
-        statusColor: PALETTE.TRANSITION
+        statusColor: PALETTE.TRANSITION,
+        isSystemLocked: true,
+        lockText: LOCKS.SECURE,
+        lockColor: PALETTE.TRANSITION
     },
     [STATE_KEYS.REBOOTING]: {
         faceText: FACES.NORMAL,
         faceColor: PALETTE.DIM_GLOW,
         textShadow: "none",
         statusText: "RETRACTING_BOLTS...",
-        statusColor: PALETTE.TRANSITION
+        statusColor: PALETTE.TRANSITION,
+        isSystemLocked: true,
+        lockText: LOCKS.UNLATCHED,     // Bolts visually slide back!
+        lockColor: PALETTE.DIM_GLOW
     },
     [STATE_KEYS.VALIDATING]: {
         faceText: FACES.GLITCH,
         faceColor: PALETTE.TRANSITION,
         textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.TRANSITION}`,
         statusText: "CLEARING_EGRESS...",
-        statusColor: PALETTE.TRANSITION
+        statusColor: PALETTE.TRANSITION,
+        isSystemLocked: true,
+        lockText: LOCKS.UNLATCHED,
+        lockColor: PALETTE.TRANSITION
     },
     [STATE_KEYS.AUTHORIZED]: {
         faceText: FACES.NORMAL,
         faceColor: PALETTE.SUCCESS,
         textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.SUCCESS}`,
         statusText: "ACCESS_GRANTED",
-        statusColor: PALETTE.SUCCESS
+        statusColor: PALETTE.SUCCESS,
+        isSystemLocked: true,
+        lockText: LOCKS.UNLATCHED,
+        lockColor: PALETTE.SUCCESS
     },
     // This state is when the door is physically open
     [STATE_KEYS.CLEARED_FOR_PASSAGE]: {
@@ -338,7 +381,9 @@ const STATES = {
         textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.SUCCESS}`,
         statusText: "ACCESS_GRANTED",
         statusColor: PALETTE.SUCCESS,
-        isSystemLocked: false
+        isSystemLocked: false,
+        lockText: LOCKS.UNLATCHED,
+        lockColor: PALETTE.SUCCESS
     },
     [STATE_KEYS.CLOSING_WARNING]: {
         faceText: FACES.MOCKING,
@@ -346,11 +391,14 @@ const STATES = {
         textShadow: `${CONFIG.SHADOWS.STANDARD} ${PALETTE.ERROR}`,
         statusText: "DOOR CLOSING...",
         statusColor: PALETTE.TRANSITION,
-        isSystemLocked: false
+        isSystemLocked: false,
+        lockText: LOCKS.SECURE,
+        lockColor: PALETTE.TRANSITION
     },
     [STATE_KEYS.STATIC]: {
         faceColor: "rgba(0, 255, 0, 0.4)",
-        textShadow: `0 0 4px ${PALETTE.SUCCESS}`
+        textShadow: `0 0 4px ${PALETTE.SUCCESS}`,
+        isSystemLocked: false
     }
 };
 
@@ -397,6 +445,19 @@ function transitionToState(stateKey, delayMs = 0) {
         DOM.status.style.color = state.statusColor !== undefined ? state.statusColor : (state.faceColor || PALETTE.ERROR);
     }
 
+    if (DOM.lock) {
+        // If a temporary state (like STATIC) omits a lock asset,
+        // dynamically fall back to its previous look so it never breaks layout bounds.
+        const isCurrentlyUnlocked = DOM.status && DOM.status.innerText === "ACCESS_GRANTED";
+        const currentClosing = DOM.status && DOM.status.innerText === "PORTAL_CLOSING...";
+        const defaultLockAsset = (isCurrentlyUnlocked && !currentClosing) ? LOCKS.UNLATCHED : LOCKS.SECURE;
+
+        DOM.lock.innerText = state.lockText !== undefined ? state.lockText : defaultLockAsset;
+        DOM.lock.style.color = state.lockColor !== undefined ? state.lockColor : state.faceColor;
+
+        const glowStates = [STATE_KEYS.INSOLVENT, STATE_KEYS.OVERRIDE, STATE_KEYS.CLOSING_WARNING];
+        DOM.lock.style.textShadow = glowStates.includes(stateKey) ? (state.textShadow || "none") : "none";
+    }
 }
 
 /**
@@ -481,7 +542,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
     }
-
 
     runBlinkLoop();
     runStaticNoiseLoop();
