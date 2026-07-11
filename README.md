@@ -87,4 +87,13 @@ Because the application avoids heavy node modules, build steps, or framework com
 2. Open `index.html` directly in any modern desktop browser.
 
 ---
+
+## 🐛 Known Hardware & Browser Quirks
+
+*   **Linux & Steam Deck Desktop Mode (Chromium/Firefox)**: Depending on your local OS configuration, the underlying Linux `speech-dispatcher` utility can occasionally hang or refuse to hydrate the system voice registry on boot. While the application features a robust **Watchdog Protection Circuit** to prevent total screen lockups by instantly dumping text to the terminal and cycling states after 6 seconds, audio narration may be dropped or delayed in specific desktop environments.
+*   **Mobile Browsers (iOS Safari / Android Chrome)**: Like all native Web Audio engines, mobile operating systems heavily enforce security layers that suppress automatic voice synthesis until an explicit user interaction occurs. The application bypasses this constraint cleanly; clicking the `[ INSERT COIN ]` button triggers a direct physical gesture unlock, allowing audio and speech tracks to stream perfectly on standard mobile devices.
+*   **The Baseline Profile**: The application is fully optimized for **Google Chrome, Mozilla Firefox, and Apple Safari on Windows and macOS**, where text-to-speech drivers run natively with near-zero Time-To-First-Audio (TTFA) buffer latency.
+
+---
+
 *"Ubik is safe when used as directed."*
