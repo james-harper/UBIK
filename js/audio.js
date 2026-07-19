@@ -134,69 +134,127 @@ async function playCoinChime() {
 }
 
 /**
- * Resolves the operational vocal personality.
- * Checks for a cached instance first, otherwise filters and locks the best system match.
+ * 🔊 FLUENT TEXT-TO-SPEECH ENGINE
  */
-function getSystemVoice() {
-    // Return the cached vocal fingerprint immediately if it exists
-    if (CONFIG.AUDIO.SELECTED_VOICE) {
-        return CONFIG.AUDIO.SELECTED_VOICE;
-    }
+const TtsEngine = {
+    _cachedVoice: null,
+    _payload: {
+        cleanText: "",
+        onSpeechStart: null,
+        onSpeechEnd: null
+    },
 
-    const availableVoices = window.speechSynthesis.getVoices();
-    // Fall back to default browser behavior if registry hasn't loaded yet
-    if (!availableVoices || availableVoices.length === 0) {
-        return null;
-    }
+    /**
+     * Pre-hydrates the voice profiles and binds the browser state engine.
+     */
+    init() {
+        const loadVoice = () => {
+            this._cachedVoice = this._resolveVoice();
+        };
 
-    // Single-pass search algorithm to parse names or language codes
-    const mechanicalVoice = availableVoices.find(voice => {
-        const matchesTarget = CONFIG.AUDIO.TARGET_VOICES.some(targetName =>
-            voice.name.includes(targetName)
-        );
-        return matchesTarget || voice.lang.startsWith("en");
-    });
+        loadVoice();
 
-    // Cache the resolved profile permanently into global state before returning
-    if (mechanicalVoice) {
-        CONFIG.AUDIO.SELECTED_VOICE = mechanicalVoice;
-    }
+        // Some older engines require a listener callback to finish hydration
+        if (window.speechSynthesis && !window.speechSynthesis.onvoiceschanged) {
+            window.speechSynthesis.onvoiceschanged = loadVoice;
+        }
+    },
 
-    return CONFIG.AUDIO.SELECTED_VOICE;
-}
-
-/**
- * Synthesizes browser text-to-speech output using the native Web Speech API.
- * Safely handles both flat strings and line layout arrays.
- */
-function speakTextWithBrowser(inputData, onSpeechStart = null, onSpeechEnd = null) {
-    try {
-        window.speechSynthesis.cancel();
-
-        const rawText = Array.isArray(inputData) ? inputData.join(" ") : inputData;
-        const cleanText = rawText.replace(/<br>/g, " ");
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 1.05;
-        utterance.pitch = 0.75;
-
-        // Direct, flat assignment using our extracted utility helper
-        const assignedVoice = getSystemVoice();
-        if (assignedVoice) {
-            utterance.voice = assignedVoice;
+    /**
+     * Resolves the operational vocal personality.
+     * Checks for a cached instance first, otherwise filters and locks the best system match.
+     * @private
+     */
+    _resolveVoice() {
+        if (CONFIG.AUDIO.SELECTED_VOICE) {
+            return CONFIG.AUDIO.SELECTED_VOICE;
         }
 
-        // Use onstart/onend callbacks to synchronise audio with text
-        utterance.onstart = () => {
-            if (typeof onSpeechStart === "function") onSpeechStart();
-        };
+        const availableVoices = window.speechSynthesis.getVoices();
+        if (!availableVoices || availableVoices.length === 0) {
+            return null;
+        }
 
-        utterance.onend = () => {
-            if (typeof onSpeechEnd === "function") onSpeechEnd();
-        };
-    window.speechSynthesis.speak(utterance);
-    } catch (e) {
-        // Graceful error isolation for browsers with restricted profiles
+        const mechanicalVoice = availableVoices.find(voice => {
+            const matchesTarget = CONFIG.AUDIO.TARGET_VOICES.some(targetName =>
+                voice.name.includes(targetName)
+            );
+            return matchesTarget || voice.lang.startsWith("en");
+        });
+
+        if (mechanicalVoice) {
+            CONFIG.AUDIO.SELECTED_VOICE = mechanicalVoice;
+        }
+
+        return mechanicalVoice || null;
+    },
+
+    /**
+     * Set data payload
+     */
+    data(inputData) {
+        // Handle empty arguments or null inputs gracefully up front
+        if (!inputData) {
+            this._payload = { cleanText: "", onSpeechStart: null, onSpeechEnd: null };
+            return this;
+        }
+
+        // Process, flatten, and sanitise text
+        const rawText = Array.isArray(inputData) ? inputData.join(" ") : inputData;
+        const cleanText = rawText.replace(/<b r>/g, " ");
+
+        this._payload = { cleanText, onSpeechStart: null, onSpeechEnd: null };
+        return this;
+    },
+
+    /**
+     * (Optional): Register a custom synchronisation start callback.
+     */
+    onStart(callback) {
+        if (typeof callback === "function") {
+            this._payload.onSpeechStart = callback;
+        }
+        return this;
+    },
+
+    /**
+     * (Optional): Register a custom synchronisation completion callback.
+     */
+    onEnd(callback) {
+        if (typeof callback === "function") {
+            this._payload.onSpeechEnd = callback;
+        }
+        return this;
+    },
+
+    /**
+     * Execute the final speech synthesis operation.
+     */
+    speak() {
+        if (!this._cachedVoice) {
+            throw new Error("TtsEngine error: speak() invoked before successful voice channel initialisation via init().");
+        }
+
+        try {
+            window.speechSynthesis.cancel();
+
+            const { cleanText, onSpeechStart, onSpeechEnd } = this._payload;
+            if (!cleanText) return; // Silent guard against empty string executions
+
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.voice = this._cachedVoice;
+            utterance.rate = 1.05;
+            utterance.pitch = 0.75;
+
+            if (onSpeechStart) utterance.onstart = () => onSpeechStart();
+            if (onSpeechEnd) utterance.onend = () => onSpeechEnd();
+
+            window.speechSynthesis.speak(utterance);
+        } catch (e) {
+            // Isolation layer for older environments
+        }
     }
-}
+};
+
+
 

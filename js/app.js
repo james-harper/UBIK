@@ -425,44 +425,49 @@ function transitionToState(stateKey, delayMs = 0) {
         return;
     }
 
-    // Handle immediate execution (0ms)
-    if (DOM.face) {
-        // Determine the safe visual fallback layout context dynamically
-        const isClosing = DOM.status && DOM.status.innerText === "PORTAL_CLOSING...";
-        const defaultFace = isClosing ? FACES.MOCKING : FACES.NORMAL;
+    // State flags
+    const isAuthorized = (DOM.status && DOM.status.innerText === "ACCESS_GRANTED");
+    const isClosing = (stateKey === STATE_KEYS.CLOSING_WARNING);
 
-        // Falls back to the correct background face during static recoveries
-        DOM.face.innerText = state.faceText !== undefined ? state.faceText : defaultFace;
-        DOM.face.style.color = state.faceColor;
-        DOM.face.style.textShadow = state.textShadow;
-    }
+    const RenderStrategies = {
+        face: function() {
+            if (!DOM.face) return;
 
-    if (DOM.status) {
-        // Determine the current underlying core status layout safely
-        const isAuthorized = DOM.status.innerText === "ACCESS_GRANTED";
-        const fallbackStatus = isAuthorized ? "ACCESS_GRANTED" : "INSOLVENT_LOCKED";
+            const defaultFace = isClosing ? FACES.MOCKING : FACES.NORMAL;
 
-        //  If a state omits a status identifier (like STATIC),
-        // cleanly fall back to its baseline state text rather than leaking variables.
-        DOM.status.innerText = state.statusText !== undefined ? state.statusText : fallbackStatus;
+            // Falls back to the correct background face during static recoveries
+            DOM.face.innerText = state.faceText ?? defaultFace;
+            DOM.face.style.color = state.faceColor;
+            DOM.face.style.textShadow = state.textShadow;
+        },
 
-        // If a status color is omitted, safely fall back to the face color or base error red
-        DOM.status.style.color = state.statusColor !== undefined ? state.statusColor : (state.faceColor || PALETTE.ERROR);
-    }
+        status: function() {
+            if (!DOM.status) return;
 
-    if (DOM.lock) {
-        // If a temporary state (like STATIC) omits a lock asset,
-        // dynamically fall back to its previous look so it never breaks layout bounds.
-        const isCurrentlyUnlocked = DOM.status && DOM.status.innerText === "ACCESS_GRANTED";
-        const currentClosing = DOM.status && DOM.status.innerText === "PORTAL_CLOSING...";
-        const defaultLockAsset = (isCurrentlyUnlocked && !currentClosing) ? LOCKS.UNLATCHED : LOCKS.SECURE;
+            const fallbackStatus = isAuthorized ? "ACCESS_GRANTED" : "INSOLVENT_LOCKED";
 
-        DOM.lock.innerText = state.lockText !== undefined ? state.lockText : defaultLockAsset;
-        DOM.lock.style.color = state.lockColor !== undefined ? state.lockColor : state.faceColor;
+            //  If a state omits a status identifier (like STATIC),
+            // cleanly fall back to its baseline state text rather than leaking variables.
+            DOM.status.innerText = state.statusText ?? fallbackStatus;
+            // If a status color is omitted, safely fall back to the face color or base error red
+            DOM.status.style.color = state.statusColor ?? (state.faceColor || PALETTE.ERROR);
+        },
 
-        const glowStates = [STATE_KEYS.INSOLVENT, STATE_KEYS.OVERRIDE, STATE_KEYS.CLOSING_WARNING];
-        DOM.lock.style.textShadow = glowStates.includes(stateKey) ? (state.textShadow || "none") : "none";
-    }
+        lock: function() {
+            if (!DOM.lock) return;
+
+            const fallbackLock = (isAuthorized && !isClosing) ? LOCKS.UNLATCHED : LOCKS.SECURE;
+            const glowStates = [STATE_KEYS.INSOLVENT, STATE_KEYS.OVERRIDE, STATE_KEYS.CLOSING_WARNING];
+            const shouldApplyGlow = glowStates.includes(stateKey) && state.textShadow;
+
+            DOM.lock.innerText = state.lockText ?? fallbackLock;
+            DOM.lock.style.color = state.lockColor ?? state.faceColor;
+            DOM.lock.style.textShadow = shouldApplyGlow ? state.textShadow : "none";
+        }
+    };
+
+    // 3. EXECUTION LOOP
+    Object.values(RenderStrategies).forEach(render => render());
 }
 
 /**
@@ -501,18 +506,14 @@ async function triggerCoinChime() {
     // Safety measure: in case TTS fails
     watchdogTimeout = initiateWatchdogTimer(selectedResponse);
 
-    speakTextWithBrowser(
-        selectedResponse,
-        () => {
+    TtsEngine.data(selectedResponse)
+        .onStart(() => {
             // TTS started successfullly! Let the typewriter take over and clear the watchdog timer so it never cuts off successful speech
             clearTimeout(watchdogTimeout);
             typeText(selectedResponse);
-        },
-        () => {
-            // TTS finished successfully! Execute normal lockdown.
-            initiateLockdownSequence();
-        }
-    );
+        })
+        .onEnd(initiateLockdownSequence)
+        .speak();
 }
 
 // ======================================================================
@@ -551,25 +552,20 @@ function initiateLockdownSequence() {
 document.addEventListener("DOMContentLoaded", () => {
     transitionToState(STATE_KEYS.INSOLVENT);
     disableCoinButton(true);
-    // Pick a randomized entry text array from the initialisation pool
-    const randomIndex = Math.floor(Math.random() * INITIAL_MESSAGES.length);
-    const selectedInitial = INITIAL_MESSAGES[randomIndex];
-
-    // Kick off the initial text crawl, passing our helper to restore the button on completion
-    typeText(selectedInitial, () => disableCoinButton(false));
 
     // PRE-HYDRATE THE SPEECH REGISTRY
     // Tapping the speech engine instantly tells the OS to stream all available
     // voice profiles into the browser cache right now, so they are fully loaded
     // long before the user clicks the button.
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.getVoices();
+    TtsEngine.init();
 
-        // Some older engines require a listener callback to finish hydration
-        if (window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-        }
-    }
+    // Pick a randomized entry text array from the initialisation pool
+    const randomIndex = Math.floor(Math.random() * INITIAL_MESSAGES.length);
+    const selectedInitial = INITIAL_MESSAGES[randomIndex];
+
+    TtsEngine.data(selectedInitial)
+        .onStart(() => typeText(selectedInitial, () => disableCoinButton(false))) // enable button on completion
+        .speak();
 
     runBlinkLoop();
     runStaticNoiseLoop();
