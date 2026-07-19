@@ -138,6 +138,7 @@ async function playCoinChime() {
  */
 const TtsEngine = {
     _cachedVoice: null,
+    _isInitializing: false,
     _payload: {
         cleanText: "",
         onSpeechStart: null,
@@ -145,48 +146,47 @@ const TtsEngine = {
     },
 
     /**
-     * Pre-hydrates the voice profiles and binds the browser state engine.
+     * Lifecycle initialization.
+     * Returns a Promise that resolves the exact moment voices are available.
+     * (Avoids race conditions where speech tries to execute before initialisation is complete)
      */
     init() {
-        const loadVoice = () => {
-            this._cachedVoice = this._resolveVoice();
-        };
+        return new Promise((resolve) => {
+            const loadVoice = () => {
+                const availableVoices = window.speechSynthesis.getVoices();
+                if (!availableVoices || availableVoices.length === 0) return;
 
-        loadVoice();
+                // Match targets or fall back to English standard
+                const mechanicalVoice = availableVoices.find(voice => {
+                    const matchesTarget = CONFIG.AUDIO.TARGET_VOICES.some(targetName =>
+                        voice.name.includes(targetName)
+                    );
+                    return matchesTarget || voice.lang.startsWith("en");
+                });
 
-        // Some older engines require a listener callback to finish hydration
-        if (window.speechSynthesis && !window.speechSynthesis.onvoiceschanged) {
-            window.speechSynthesis.onvoiceschanged = loadVoice;
-        }
-    },
+                if (mechanicalVoice) {
+                    CONFIG.AUDIO.SELECTED_VOICE = mechanicalVoice;
+                    this._cachedVoice = mechanicalVoice;
+                    resolve(mechanicalVoice); // Resolve the promise once locked
+                }
+            };
 
-    /**
-     * Resolves the operational vocal personality.
-     * Checks for a cached instance first, otherwise filters and locks the best system match.
-     * @private
-     */
-    _resolveVoice() {
-        if (CONFIG.AUDIO.SELECTED_VOICE) {
-            return CONFIG.AUDIO.SELECTED_VOICE;
-        }
+            // If already resolved by a previous hook, exit immediately
+            if (this._cachedVoice) {
+                resolve(this._cachedVoice);
+                return;
+            }
 
-        const availableVoices = window.speechSynthesis.getVoices();
-        if (!availableVoices || availableVoices.length === 0) {
-            return null;
-        }
+            loadVoice();
 
-        const mechanicalVoice = availableVoices.find(voice => {
-            const matchesTarget = CONFIG.AUDIO.TARGET_VOICES.some(targetName =>
-                voice.name.includes(targetName)
-            );
-            return matchesTarget || voice.lang.startsWith("en");
+            // Some older engines require a listener callback to finish hydration
+            if (window.speechSynthesis && !this._isInitializing) {
+                this._isInitializing = true;
+                window.speechSynthesis.onvoiceschanged = () => {
+                    loadVoice();
+                };
+            }
         });
-
-        if (mechanicalVoice) {
-            CONFIG.AUDIO.SELECTED_VOICE = mechanicalVoice;
-        }
-
-        return mechanicalVoice || null;
     },
 
     /**
@@ -228,14 +228,15 @@ const TtsEngine = {
     },
 
     /**
-     * Execute the final speech synthesis operation.
+     *  Execute the final speech synthesis operation.
      */
-    speak() {
-        if (!this._cachedVoice) {
-            throw new Error("TtsEngine error: speak() invoked before successful voice channel initialisation via init().");
-        }
-
+    async speak() {
         try {
+            // Lazy-load safety shield: If called before init finishes, wait for it!
+            if (!this._cachedVoice) {
+                await this.init();
+            }
+
             window.speechSynthesis.cancel();
 
             const { cleanText, onSpeechStart, onSpeechEnd } = this._payload;
@@ -251,10 +252,7 @@ const TtsEngine = {
 
             window.speechSynthesis.speak(utterance);
         } catch (e) {
-            // Isolation layer for older environments
+            // Isolation layer for unsupported browser profiles
         }
     }
 };
-
-
-
