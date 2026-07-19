@@ -179,7 +179,7 @@ const TtsEngine = {
 
             loadVoice();
 
-            // Bind native async listener if voices weren't ready on the first pass
+            // Some older engines require a listener callback to finish hydration
             if (window.speechSynthesis && !this._isInitializing) {
                 this._isInitializing = true;
                 window.speechSynthesis.onvoiceschanged = () => {
@@ -193,11 +193,13 @@ const TtsEngine = {
      * Set data payload
      */
     data(inputData) {
+        // Handle empty arguments or null inputs gracefully up front
         if (!inputData) {
             this._payload = { cleanText: "", onSpeechStart: null, onSpeechEnd: null };
             return this;
         }
 
+        // Process, flatten, and sanitise text
         const rawText = Array.isArray(inputData) ? inputData.join(" ") : inputData;
         const cleanText = rawText.replace(/<b r>/g, " ");
 
@@ -238,7 +240,7 @@ const TtsEngine = {
             window.speechSynthesis.cancel();
 
             const { cleanText, onSpeechStart, onSpeechEnd } = this._payload;
-            if (!cleanText) return;
+            if (!cleanText) return; // Silent guard against empty string executions
 
             const utterance = new SpeechSynthesisUtterance(cleanText);
             utterance.voice = this._cachedVoice;
