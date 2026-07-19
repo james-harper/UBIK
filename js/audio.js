@@ -206,7 +206,7 @@ const TtsEngine = {
     },
 
     /**
-     * Stage 2 (Optional): Register a custom synchronization start callback.
+     * (Optional): Register a custom synchronisation start callback.
      */
     onStart(callback) {
         if (typeof callback === "function") {
@@ -216,7 +216,7 @@ const TtsEngine = {
     },
 
     /**
-     * Stage 3 (Optional): Register a custom synchronization completion callback.
+     * (Optional): Register a custom synchronisation completion callback.
      */
     onEnd(callback) {
         if (typeof callback === "function") {
@@ -226,7 +226,7 @@ const TtsEngine = {
     },
 
     /**
-     * Stage 4: Asynchronously execute speech synthesis once the audio channel is ready.
+     *  Execute the final speech synthesis operation.
      */
     async speak() {
         try {
