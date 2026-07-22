@@ -12,6 +12,8 @@ const FREQUENCY_MAP = {
     DEFAULT_A4: 440, // Standard global fallback pitch reference
     CLICK_BASE: 150, // Low pitch mechanical terminal stroke
     CLICK_DROP: 40,  // Target pitch slide depth
+    D5: 587.33,      // Warning Alert tone
+    A5: 880,         // Warning tone: Urgent
     B5: 987.77,      // Arcade chime introductory tone
     E6: 1318.51      // Arcade chime ascendant payoff tone
 };
@@ -20,10 +22,10 @@ const FREQUENCY_MAP = {
 let globalAudioCtx = null;
 
 /**
- * Initializes or resumes a single, global AudioContext instance.
+ * Initializes global AudioContext instance.
  * Returns null if the browser restricts initialization due to autoplay rules.
  */
-function getSharedAudioContext() {
+function setSharedAudioContext() {
     try {
         // Instantiate the Singleton if it doesn't exist yet
         if (!globalAudioCtx) {
@@ -79,39 +81,10 @@ function createOscillatorNode(ctx, options = {}) {
 }
 
 /**
- * Text-crawl mechanical audio feedback loop.
- * Safely ignores execution if the page has not received a user interaction yet.
- */
-function playTextClick() {
-    const audioCtx = getSharedAudioContext();
-    if (!audioCtx) return; // Silent guard: page hasn't been clicked yet, stay quiet
-
-    createOscillatorNode(audioCtx, {
-        type: OSCILLATORS.TRIANGLE,
-        frequency: FREQUENCY_MAP.CLICK_BASE,
-        frequencySlideTarget: FREQUENCY_MAP.CLICK_DROP,
-        startTime: audioCtx.currentTime,
-        volume: CONFIG.AUDIO.CLICK.VOLUME,
-        duration: CONFIG.AUDIO.CLICK.DURATION
-    });
-}
-
-/**
  * Two-note classic arcade synthetic chime sequence.
  * Explicitly resumes the audio context since it is fired by a button click gesture.
  */
 async function playCoinChime() {
-    // If the singleton doesn't exist, create it
-    if (!globalAudioCtx) {
-        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    // Explicitly resume the context. Because this is fired by a button click,
-    // the browser will unlock the hardware channel instantly and permanently.
-    if (globalAudioCtx.state === 'suspended') {
-        await globalAudioCtx.resume();
-    }
-
     const now = globalAudioCtx.currentTime;
 
     // Note 1: First Chime Step
@@ -134,6 +107,32 @@ async function playCoinChime() {
 }
 
 /**
+ * Schedules a high-precision, accelerating 5-second countdown warning.
+ * Safely ignores execution if the audio context is currently unavailable.
+ */
+function playDoorClosingWarning(warningWindowMs = CONFIG.ANIMATION.WARNING_WINDOW) {
+    const now = globalAudioCtx.currentTime;
+    const totalDurationSeconds = warningWindowMs / 1000;
+
+    for (let i = 0; i < CONFIG.AUDIO.WARNING.TOTAL_BEEPS; i++) {
+        // Calculate an accelerating curve where progress ranges from 0 to 1
+        const progress = i / (CONFIG.AUDIO.WARNING.TOTAL_BEEPS - 1);
+        // This exponential curve clusters the delay intervals closer together near the end
+        const delay = totalDurationSeconds * (1 - Math.pow(1 - progress, 2));
+        const isFinalBeep = i === CONFIG.AUDIO.WARNING.TOTAL_BEEPS - 1;
+
+        createOscillatorNode(globalAudioCtx, {
+            type: OSCILLATORS.SQUARE,
+            // Automatically spikes the pitch on the final beep for urgency
+            frequency: isFinalBeep ? FREQUENCY_MAP.A5 : FREQUENCY_MAP.D5,
+            startTime: now + delay,
+            volume: CONFIG.AUDIO.WARNING.VOLUME,
+            duration: CONFIG.AUDIO.WARNING.DURATION
+        });
+    }
+}
+
+/**
  * 🔊 FLUENT TEXT-TO-SPEECH ENGINE
  */
 const TtsEngine = {
@@ -151,6 +150,8 @@ const TtsEngine = {
      * (Avoids race conditions where speech tries to execute before initialisation is complete)
      */
     init() {
+        setSharedAudioContext();
+
         return new Promise((resolve) => {
             const loadVoice = () => {
                 const availableVoices = window.speechSynthesis.getVoices();

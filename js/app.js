@@ -36,15 +36,16 @@ const CONFIG = {
             VOLUME: 0.05,
             DURATION: 0.1
         },
-        CLICK: {
-            VOLUME: 0.015,
-            DURATION: 0.03
-        },
         CHIME: {
             VOLUME: 0.08,
             DURATION_NOTE_1: 0.08,
             DURATION_NOTE_2: 0.35,
             DELAY_NOTE_2: 0.08
+        },
+        WARNING: {
+            VOLUME: 0.15,
+            DURATION: 0.08, // Short punchy mechanical chirps
+            TOTAL_BEEPS: 8 // Number of audio warning beeps
         },
         // List of robotic/clinical TTS voice
         TARGET_VOICES: ['Google US English', 'Zira', 'Hazel'],
@@ -199,11 +200,6 @@ function typeText(inputData, onCompleteCallback = null) {
         const nextToken = parseHtmlBreak(text, index);
         DOM.textBox.innerHTML += nextToken.value;
         index += nextToken.advanceBy;
-
-        // Skip mechanical clicking calculations for raw layout breaks or spaces
-        if (!nextToken.isTag && nextToken.value !== " ") {
-            playTextClick();
-        }
 
         textTimeout = setTimeout(nextCharacter, CONFIG.TYPE_SPEED);
     }
@@ -411,12 +407,31 @@ const STATES = {
 // 💬 NARRATIVE CONTENT MANIFEST
 // ==========================================
 /**
+ * Safely updates a DOM element's text and inline styles.
+ * @param {HTMLElement|null} element - The target DOM node.
+ * @param {string} text - The innerText value to apply.
+ * @param {Object} [styles] - Optional dictionary of inline CSS styles.
+ */
+function updateElement(element, text, styles = {}) {
+    if (!element) return;
+
+    element.innerText = text;
+
+    // Filter out undefined/null styles and apply valid inline rules
+    Object.entries(styles).forEach(([prop, value]) => {
+        if (value !== undefined && value !== null) {
+            element.style[prop] = value;
+        }
+    });
+}
+
+/**
  * Transitions the system to a predefined operational state.
  * Schedules the change if a delay is provided, otherwise updates immediately.
  */
 function transitionToState(stateKey, delayMs = 0) {
     const state = STATES[stateKey];
-    if (!state) return; // Guard clause: state must exist in manifest
+    if (!state) return; // Guard clause: state must exist
 
     // Handle delayed scheduling
     if (delayMs > 0) {
@@ -431,42 +446,42 @@ function transitionToState(stateKey, delayMs = 0) {
 
     const RenderStrategies = {
         face: function() {
-            if (!DOM.face) return;
-
             const defaultFace = isClosing ? FACES.MOCKING : FACES.NORMAL;
 
-            // Falls back to the correct background face during static recoveries
-            DOM.face.innerText = state.faceText ?? defaultFace;
-            DOM.face.style.color = state.faceColor;
-            DOM.face.style.textShadow = state.textShadow;
+            updateElement(
+                DOM.face,
+                state.faceText ?? defaultFace,
+                { color: state.faceColor, textShadow: state.textShadow }
+            );
         },
 
         status: function() {
-            if (!DOM.status) return;
-
             const fallbackStatus = isAuthorized ? "ACCESS_GRANTED" : "INSOLVENT_LOCKED";
+            const fallbackColour = (state.faceColor || PALETTE.ERROR);
 
-            //  If a state omits a status identifier (like STATIC),
-            // cleanly fall back to its baseline state text rather than leaking variables.
-            DOM.status.innerText = state.statusText ?? fallbackStatus;
-            // If a status color is omitted, safely fall back to the face color or base error red
-            DOM.status.style.color = state.statusColor ?? (state.faceColor || PALETTE.ERROR);
+            updateElement(
+                DOM.status,
+                state.statusText ?? fallbackStatus,
+                { color: state.statusColor ?? fallbackColour }
+            );
         },
 
         lock: function() {
-            if (!DOM.lock) return;
-
             const fallbackLock = (isAuthorized && !isClosing) ? LOCKS.UNLATCHED : LOCKS.SECURE;
             const glowStates = [STATE_KEYS.INSOLVENT, STATE_KEYS.OVERRIDE, STATE_KEYS.CLOSING_WARNING];
             const shouldApplyGlow = glowStates.includes(stateKey) && state.textShadow;
 
-            DOM.lock.innerText = state.lockText ?? fallbackLock;
-            DOM.lock.style.color = state.lockColor ?? state.faceColor;
-            DOM.lock.style.textShadow = shouldApplyGlow ? state.textShadow : "none";
+            updateElement(
+                DOM.lock,
+                state.lockText ?? fallbackLock,
+                {
+                    color: state.lockColor ?? state.faceColor,
+                    textShadow: shouldApplyGlow ? state.textShadow : "none"
+                }
+            );
         }
     };
 
-    // 3. EXECUTION LOOP
     Object.values(RenderStrategies).forEach(render => render());
 }
 
@@ -538,6 +553,7 @@ function initiateWatchdogTimer(text) {
  */
 function initiateLockdownSequence() {
     transitionToState(STATE_KEYS.CLOSING_WARNING);
+    playDoorClosingWarning(CONFIG.ANIMATION.WARNING_WINDOW);
     transitionToState(STATE_KEYS.INSOLVENT, CONFIG.ANIMATION.WARNING_WINDOW);
 
     // Display warning before unlocking button again
