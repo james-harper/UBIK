@@ -36,15 +36,16 @@ const CONFIG = {
             VOLUME: 0.05,
             DURATION: 0.1
         },
-        CLICK: {
-            VOLUME: 0.015,
-            DURATION: 0.03
-        },
         CHIME: {
             VOLUME: 0.08,
             DURATION_NOTE_1: 0.08,
             DURATION_NOTE_2: 0.35,
             DELAY_NOTE_2: 0.08
+        },
+        WARNING: {
+            VOLUME: 0.15,
+            DURATION: 0.08, // Short punchy mechanical chirps
+            TOTAL_BEEPS: 8 // Number of audio warning beeps
         },
         // List of robotic/clinical TTS voice
         TARGET_VOICES: ['Google US English', 'Zira', 'Hazel'],
@@ -199,11 +200,6 @@ function typeText(inputData, onCompleteCallback = null) {
         const nextToken = parseHtmlBreak(text, index);
         DOM.textBox.innerHTML += nextToken.value;
         index += nextToken.advanceBy;
-
-        // Skip mechanical clicking calculations for raw layout breaks or spaces
-        if (!nextToken.isTag && nextToken.value !== " ") {
-            playTextClick();
-        }
 
         textTimeout = setTimeout(nextCharacter, CONFIG.TYPE_SPEED);
     }
@@ -557,6 +553,7 @@ function initiateWatchdogTimer(text) {
  */
 function initiateLockdownSequence() {
     transitionToState(STATE_KEYS.CLOSING_WARNING);
+    playDoorClosingWarning(CONFIG.ANIMATION.WARNING_WINDOW);
     transitionToState(STATE_KEYS.INSOLVENT, CONFIG.ANIMATION.WARNING_WINDOW);
 
     // Display warning before unlocking button again
